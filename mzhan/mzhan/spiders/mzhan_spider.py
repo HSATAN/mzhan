@@ -1,5 +1,5 @@
 # coding=utf8
-
+import re
 from scrapy.selector import Selector
 from base_spider import BaseSpider
 from mzhan.login import is_login,login,cookielib
@@ -60,7 +60,6 @@ class MZhanSpider(BaseSpider):
                         errback=self.handle_error,
                         priority=3
                     )
-                    break
 
     def parse_page(self, response):
         metadata = response.meta['audiodata']
@@ -84,7 +83,6 @@ class MZhanSpider(BaseSpider):
                     errback=self.handle_error,
                     priority=5
                 )
-                break
 
     def parse_cover_title(self, response):
         metadata = response.meta['audiodata']
@@ -125,9 +123,8 @@ class MZhanSpider(BaseSpider):
                     cookies=cookielib.LWPCookieJar(filename='mzhan_cookies'),
                     callback=self.parse_details,
                     errback=self.handle_error,
-                    priority=10
+                    priority=6
                 )
-                break
 
     def parse_details(self, response):
 
@@ -138,11 +135,28 @@ class MZhanSpider(BaseSpider):
         data = None
         print ' json_url    ============',json_url
         print sound_id
-        data = json.loads(requests.get(json_url).text)
+        m = copy.deepcopy(metadata)
+        yield scrapy.Request(url=json_url,
+                             meta={"audiodata": m},
+                             callback=self.parse_album,
+                             errback=self.handle_error,
+                             priority=8
+                             )
 
+
+
+
+
+    def parse_album(self,response):
+        data = response.text
+        sound_id = response.url.split('=')[-1]
+        metadata = response.meta['audiodata']
+        sound_url = 'http://www.missevan.com/sound/getsound?soundid=%s' % sound_id
+        print sound_url,'+++++++'
         if data:
             albums = None
             try:
+                data = json.loads(data)
                 albums = data['successVal']['albums'][0]
             except Exception as e:
                 print e
@@ -159,19 +173,22 @@ class MZhanSpider(BaseSpider):
                 metadata['album_update_time'] = self.getTime(albums_last_update_time)
                 metadata['album_create_user_id'] = albums_create_user_id
                 metadata['album_cover_image'] = albums_cover_image
+            m = copy.deepcopy(metadata)
+            yield scrapy.Request(url=sound_url,
+                                 meta={"audiodata": m},
+                                 callback=self.parse_audio_user,
+                                 errback=self.handle_error,
+                                 priority=10
+                                 )
+    def parse_audio_user(self,response):
+        metadata = response.meta['audiodata']
 
-
-        sound_url = 'http://www.missevan.com/sound/getsound?soundid=%s' % sound_id
-        print 'sound_url=======',sound_url
-        sound_info = None
-        try:
-            sound_info = json.loads(requests.get(url=sound_url).text)
-        except Exception as e:
-            print e
+        sound_info = json.loads(response.text)
         sound = None
         try:
             sound = sound_info['info']['sound']
         except Exception as e:
+            print '---------info   sound'
             print e
         user = None
         try:
@@ -181,11 +198,14 @@ class MZhanSpider(BaseSpider):
         tags = None
         try:
             tags = sound_info['info']['tags']
+
         except Exception as e:
             print e
-        if tags:
-            for tag in tags:
-                pass
+        metadata['audio_tags'] = tags
+        try:
+            metadata['upper_person_url'] = self.host_url + '/' + str(user['id'])
+        except Exception as e:
+            print e
         try:
             upper_id = self.uid_prefix + str(user['id'])
             metadata['upper_id'] = upper_id
@@ -193,6 +213,7 @@ class MZhanSpider(BaseSpider):
             print e
         try:
             upper_introduce = user['intro']
+            upper_introduce = re.sub('<(.*?)>', '', upper_introduce, re.S)
             metadata['upper_introduce'] = upper_introduce
         except Exception as e:
             print e
@@ -213,6 +234,7 @@ class MZhanSpider(BaseSpider):
             print e
         try:
             audio_introduce = sound['intro']
+            audio_introduce = re.sub('<(.*?)>', '', audio_introduce, re.S)
             metadata['audio_introduce'] = audio_introduce
         except Exception as e:
             print e
@@ -222,7 +244,7 @@ class MZhanSpider(BaseSpider):
         except Exception as e:
             print e
         try:
-            metadata['audio_mp3_url_low'] = self.audio_host+sound['soundurl_32']
+            metadata['audio_mp3_url_low'] = self.audio_host + sound['soundurl_32']
         except Exception as e:
             print e
 
@@ -243,10 +265,6 @@ class MZhanSpider(BaseSpider):
         except Exception as e:
             print e
         try:
-            metadata['audio_comment_sum'] = sound['comment_count']
-        except Exception as e:
-            print e
-        try:
             metadata['audio_points'] = sound['point']
         except Exception as e:
             print e
@@ -254,7 +272,22 @@ class MZhanSpider(BaseSpider):
             metadata['audio_uptimes'] = sound['uptimes']
         except Exception as e:
             print e
+        try:
+            metadata['upper_fansnum'] = user['fansnum']
+        except Exception as e:
+            print e
+        try:
+            metadata['upper_soundnum'] = user['soundnum']
+        except Exception as e:
+            print e
+        timestamp = time.time()
+        # 转换成localtime
+        time_local = time.localtime(timestamp)
+        # 转换成新的时间格式(2017-08-28 20:28:54)
+        format_date = time.strftime("%Y-%m-%d %H:%M:%S", time_local)
+
         item = MzhanItem()
+        item['touch_time'] = format_date
         for key, value in metadata.items():
             item[key] = value
         yield item

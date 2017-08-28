@@ -37,7 +37,8 @@ class MzhanPipeline(object):
             try:
                 user_values = user_values + ',' + "'%s'" % item[key]
                 user_columns = user_columns + ',' + value
-            except:
+            except Exception as e:
+                print e
                 pass
         if user_values:
             user_sql = '(%s)' %user_columns.strip(',') + '  VALUES(%s)' % user_values.strip(',')
@@ -51,6 +52,12 @@ class MzhanPipeline(object):
                 pass
         if audio_values:
             audio_sql = '(%s)' % audio_columns.strip(',') + '  VALUES(%s)' % audio_values.strip(',')
+        if item['audio_tags']:
+            for tag in item['audio_tags']:
+                tag_sql = "(audio_id,tag_name,tag_id,touch_time) VALUES('%s','%s','%s','%s')" % (item['audio_id'], tag['name'], tag['id'], item['touch_time'])
+                self.db.query('mzhan_tag', tag_sql)
+
+
         print album_sql
         print user_sql
         print audio_sql
@@ -68,6 +75,7 @@ class MzhanPipeline(object):
             self.db.query('mzhan_audio', audio_sql)
             #except Exception as e:
                 #print
+
         return item
 
     def spider_closed(self,spider):

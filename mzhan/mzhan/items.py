@@ -17,7 +17,7 @@ class MzhanItem(scrapy.Item):
     upper_name = scrapy.Field()  # upper 昵称
     upper_head_image = scrapy.Field()  # upper 头像
     upper_introduce = scrapy.Field()  # upper 介绍
-
+    upper_person_url = scrapy.Field()  # 个人信息主页
     upper_fansnum = scrapy.Field()  # upper 粉丝数目，粉丝数目多的可能内容质量好
     upper_soundnum = scrapy.Field()  # upper 拥有的音频数
     #  这个两个属性可以做推荐用
@@ -34,7 +34,6 @@ class MzhanItem(scrapy.Item):
     audio_play_times = scrapy.Field()  # 播放次数
     audio_uptimes = scrapy.Field()  # 点赞次数,标记喜欢
     audio_points = scrapy.Field()  # 投食次数
-    audio_comment_sum = scrapy.Field()  # 评论次数
     #  这几个属性做推荐的时候可能会用上
     audio_mp3_url_low = scrapy.Field()  # 低音质
     audio_mp3_url_middle = scrapy.Field()  # 中音质
@@ -47,5 +46,7 @@ class MzhanItem(scrapy.Item):
     album_create_time = scrapy.Field()  # 专辑创建时间
     album_update_time = scrapy.Field()  # 专辑更新时间
     album_create_user_id = scrapy.Field()  # 专辑的创建者id 根据这个id就可以找到对应的用户信息
+
+    touch_time = scrapy.Field()  # 数据的爬取时间
 
 

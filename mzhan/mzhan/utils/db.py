@@ -1,6 +1,6 @@
 # coding=utf8
 import psycopg2
-
+import logging
 
 HOST = 'localhost'
 PORT = '5432'
@@ -18,10 +18,13 @@ class BaseDB(object):
     def query(self, table=None, columns_values=None):
         # 插入操作
         if table and columns_values:
-            sql = 'INSERT INTO  %s  %s  ' % (table, columns_values)
-            self.cur.execute(sql)
-            self.commit()
-        pass
+            try:
+                sql = 'INSERT INTO  %s  %s  ' % (table, columns_values)
+                self.cur.execute(sql)
+                self.commit()
+            except Exception as e:
+                self.commit()
+                logging.error(str(e))
 
     def update(self):
         # 更新操作
